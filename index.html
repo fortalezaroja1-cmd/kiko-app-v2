@@ -442,11 +442,16 @@ input,select,textarea,button{font-family:var(--font)}
       </div>
     </div>
     <div class="section">
-      <div class="tabs">
-        <button class="tab-btn on" onclick="switchFinTab('resumen',this)">Resumen</button>
-        <button class="tab-btn" onclick="switchFinTab('movs',this)">Movimientos</button>
-        <button class="tab-btn" onclick="switchFinTab('deudas',this)">Deudas</button>
-        <button class="tab-btn" onclick="switchFinTab('subs',this)">Suscripciones</button>
+      <div style="overflow-x:auto;white-space:nowrap;border-bottom:0.5px solid var(--brd);margin-bottom:12px">
+        <div style="display:inline-flex;gap:0">
+          <button class="tab-btn on" onclick="switchFinTab('resumen',this)" style="padding:8px 14px;flex:none">Resumen</button>
+          <button class="tab-btn" onclick="switchFinTab('movs',this)" style="padding:8px 14px;flex:none">Movimientos</button>
+          <button class="tab-btn" onclick="switchFinTab('flujo',this)" style="padding:8px 14px;flex:none">Flujo</button>
+          <button class="tab-btn" onclick="switchFinTab('patrimonio',this)" style="padding:8px 14px;flex:none">Patrimonio</button>
+          <button class="tab-btn" onclick="switchFinTab('acciones',this)" style="padding:8px 14px;flex:none">Acciones</button>
+          <button class="tab-btn" onclick="switchFinTab('deudas',this)" style="padding:8px 14px;flex:none">Deudas</button>
+          <button class="tab-btn" onclick="switchFinTab('subs',this)" style="padding:8px 14px;flex:none">Suscripciones</button>
+        </div>
       </div>
       <div id="fin-tab-resumen"><div id="fin-resumen"></div></div>
       <div id="fin-tab-movs" style="display:none">
@@ -456,6 +461,30 @@ input,select,textarea,button{font-family:var(--font)}
           <div class="pill" onclick="filterMovs('gasto',this)">Gastos</div>
         </div>
         <div class="card" id="fin-movs-list"></div>
+      </div>
+      <div id="fin-tab-flujo" style="display:none"><div id="fin-flujo-content"></div></div>
+      <div id="fin-tab-patrimonio" style="display:none">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div class="slabel" style="margin:0">Cuentas y ahorros</div>
+          <div style="width:28px;height:28px;border-radius:8px;background:var(--accent);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;color:#fff" onclick="openCuentaModal(null)">+</div>
+        </div>
+        <div id="fin-cuentas-list"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin:8px 0">
+          <div class="slabel" style="margin:0">Propiedades y activos</div>
+          <div style="width:28px;height:28px;border-radius:8px;background:var(--accent);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;color:#fff" onclick="openPropModal(null)">+</div>
+        </div>
+        <div id="fin-props-list"></div>
+        <div id="fin-patrimonio-total" style="margin-top:8px"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin:8px 0">
+          <div class="slabel" style="margin:0">Ingresos recurrentes</div>
+          <div style="width:28px;height:28px;border-radius:8px;background:var(--accent);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;color:#fff" onclick="openRecurrenteModal(null)">+</div>
+        </div>
+        <div id="fin-recurrentes-list"></div>
+      </div>
+      <div id="fin-tab-acciones" style="display:none">
+        <div id="fin-acciones-resumen" style="margin-bottom:10px"></div>
+        <div id="fin-acciones-list"></div>
+        <button class="add-btn" onclick="openAccionModal(null)">+ Nueva acción</button>
       </div>
       <div id="fin-tab-deudas" style="display:none">
         <div class="tabs">
@@ -885,7 +914,19 @@ input,select,textarea,button{font-family:var(--font)}
       <button class="btn-sec" id="btn-deuda-yo" style="flex:1" onclick="selDeudaTipo('debo')">Debo</button>
     </div>
     <label class="inp-label">Persona / Entidad</label>
-    <input class="inp" id="inp-deuda-persona" placeholder="Nombre o banco">
+    <input class="inp" id="inp-deuda-persona" placeholder="Ej: Bancolombia, mamá, Carlos...">
+    <label class="inp-label">Tipo de entidad</label>
+    <select class="inp-sel" id="inp-deuda-entidad-tipo">
+      <option value="banco">Banco / Financiera</option>
+      <option value="persona">Persona</option>
+      <option value="empresa">Empresa</option>
+      <option value="gobierno">Entidad gubernamental</option>
+      <option value="otro">Otro</option>
+    </select>
+    <label class="inp-label">Próxima fecha de pago</label>
+    <input class="inp" id="inp-deuda-fecha-pago" type="date">
+    <label class="inp-label">Valor de la cuota mensual (COP $)</label>
+    <input class="inp" id="inp-deuda-cuota-mensual" type="number" min="0" placeholder="0">
     <label class="inp-label">Descripción</label>
     <input class="inp" id="inp-deuda-desc" placeholder="¿Para qué fue?">
     <label class="inp-label">Origen</label>
@@ -1251,9 +1292,9 @@ let state={
     {id:5,type:'gasto',desc:'Farmacia',val:45000,cat:'Salud',date:getOff(-2)},
   ],
   deudas:[
-    {id:1,type:'me-deben',persona:'Camila',valOriginal:150000,valActual:150000,desc:'Almuerzo semana pasada',origen:'Préstamo personal',interes:0,cuotasMeta:1,cuotasPagadas:0,fechaInicio:'2025-05-10',notas:''},
-    {id:2,type:'debo',persona:'Mamá',valOriginal:600000,valActual:400000,desc:'Apoyo de emergencia',origen:'Préstamo familiar',interes:0,cuotasMeta:3,cuotasPagadas:1,fechaInicio:'2025-04-01',notas:'Pago mensual de $200k'},
-    {id:3,type:'debo',persona:'Banco',valOriginal:5000000,valActual:3800000,desc:'Crédito libre inversión',origen:'Crédito bancario',interes:1.8,cuotasMeta:24,cuotasPagadas:6,fechaInicio:'2024-11-01',notas:'Cuota mensual $250k'},
+    {id:1,type:'me-deben',persona:'Camila',entidadTipo:'persona',valOriginal:150000,valActual:150000,desc:'Almuerzo semana pasada',origen:'Préstamo personal',interes:0,cuotasMeta:1,cuotasPagadas:0,fechaInicio:'2025-05-10',fechaPago:'',cuotaMensual:150000,notas:''},
+    {id:2,type:'debo',persona:'Mamá',entidadTipo:'persona',valOriginal:600000,valActual:400000,desc:'Apoyo de emergencia',origen:'Préstamo familiar',interes:0,cuotasMeta:3,cuotasPagadas:1,fechaInicio:'2025-04-01',fechaPago:'2025-06-01',cuotaMensual:200000,notas:''},
+    {id:3,type:'debo',persona:'Bancolombia',entidadTipo:'banco',valOriginal:5000000,valActual:3800000,desc:'Crédito libre inversión',origen:'Crédito bancario',interes:1.8,cuotasMeta:24,cuotasPagadas:6,fechaInicio:'2024-11-01',fechaPago:'2025-06-05',cuotaMensual:250000,notas:''},
   ],
   subs:[
     {id:1,name:'Netflix',val:22900,dia:5},
@@ -1275,6 +1316,24 @@ let state={
   ],
   peso:62,
   empresas:[],
+  patrimonio:{
+    cuentas:[
+      {id:1,nombre:'Efectivo en casa',tipo:'efectivo',valor:500000,interes:0,descripcion:''},
+      {id:2,nombre:'Fondo Porvenir',tipo:'fondo',valor:2500000,interes:4.5,descripcion:'Fondo de pensiones voluntarias'},
+    ],
+    propiedades:[
+      {id:1,nombre:'Apartamento',tipo:'inmueble',valorAprox:180000000,descripcion:'Calle 45 # 12-30'},
+      {id:2,nombre:'Vehículo',tipo:'vehiculo',valorAprox:45000000,descripcion:'Mazda 2022'},
+    ],
+  },
+  ingresosRecurrentes:[
+    {id:1,descripcion:'Salario',monto:3200000,frecuencia:'mensual',diaCobro:1,activo:true,ultimoCobro:''},
+    {id:2,descripcion:'Arriendo local',monto:800000,frecuencia:'mensual',diaCobro:5,activo:true,ultimoCobro:''},
+  ],
+  acciones:[
+    {id:1,ticker:'ECOPETROL',nombre:'Ecopetrol',cantidad:100,precioCompra:2150,precioActual:2280,fecha:'2024-08-15'},
+    {id:2,ticker:'BANCOLOMBIA',nombre:'Bancolombia',cantidad:50,precioCompra:41200,precioActual:43500,fecha:'2024-06-20'},
+  ],
   perfil:{nombre:'',edad:'',altura:'',sexo:'',meta_peso:'',meta_agua:2,meta_sueno:7},
   registros:[
     {id:1,fecha:'2025-05-19',peso:63.2,agua:1.5,sueno:6.5},
@@ -1589,12 +1648,15 @@ function movRowHTML(m){
   return `<div class="mov-row"><div class="mov-icon" style="background:${c.bg||'#E1F5EE'}"><i class="ti ${c.icon}" style="color:${c.color||'var(--pos)'}"></i></div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500;color:var(--t1)">${m.desc}</div><div style="font-size:11px;color:var(--t2)">${fmtDate(m.date)}</div></div><div style="font-size:13px;font-weight:600;color:${isI?'var(--pos)':'var(--neg)'}">${isI?'+':'-'}${fmt(m.val)}</div><i class="ti ti-dots-vertical" style="font-size:14px;color:var(--t3);cursor:pointer;margin-left:6px" onclick="openMovModal(${m.id})"></i></div>`;
 }
 function switchFinTab(id,btn){
-  ['resumen','movs','deudas','subs'].forEach(t=>{document.getElementById('fin-tab-'+t).style.display='none';});
-  document.getElementById('fin-tab-'+id).style.display='block';
-  document.querySelectorAll('#s-finanzas .tabs:first-of-type .tab-btn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');
+  ['resumen','movs','deudas','subs','flujo','patrimonio','acciones'].forEach(t=>{const el=document.getElementById('fin-tab-'+t);if(el)el.style.display='none';});
+  const tab=document.getElementById('fin-tab-'+id);if(tab)tab.style.display='block';
+  document.querySelectorAll('#s-finanzas .tab-btn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');
   if(id==='movs')renderMovsList();
   if(id==='deudas')renderDeudas();
   if(id==='subs')renderSubs();
+  if(id==='flujo')renderFlujoCaja();
+  if(id==='patrimonio')renderPatrimonio();
+  if(id==='acciones')renderAcciones();
 }
 function renderMovsList(){
   const filtered=finMovFilter?state.movs.filter(m=>m.type===finMovFilter):state.movs;
@@ -3805,6 +3867,344 @@ function renderAgendaHome(){
 }
 
 // INIT
+// ═══════════════════════════════════════════
+// PATRIMONIO
+// ═══════════════════════════════════════════
+const CUENTA_ICONS={efectivo:'💵',fondo:'📈',banco:'🏦',digital:'📱',otro:'📦'};
+const PROP_ICONS={inmueble:'🏠',vehiculo:'🚗',negocio:'🏢',otro:'📦'};
+const ENTIDAD_ICONS={banco:'🏦',persona:'👤',empresa:'🏢',gobierno:'🏛️',otro:'📋'};
+
+let editCuentaId=null,editPropId=null,editRecId=null,editAccId=null;
+
+function renderPatrimonio(){
+  // ── Cuentas ──────────────────────────────
+  const totalCuentas=state.patrimonio.cuentas.reduce((a,c)=>a+c.valor,0);
+  document.getElementById('fin-cuentas-list').innerHTML=state.patrimonio.cuentas.length
+    ?`<div class="card" style="padding:0 14px">${state.patrimonio.cuentas.map(c=>`
+      <div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:0.5px solid var(--brd);cursor:pointer" onclick="openCuentaModal(${c.id})">
+        <div style="width:38px;height:38px;border-radius:11px;background:#E1F5EE;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${CUENTA_ICONS[c.tipo]||'💰'}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;color:var(--t1)">${c.nombre}</div>
+          ${c.interes>0?`<div style="font-size:11px;color:var(--pos)">Genera ${c.interes}% EA</div>`:`<div style="font-size:11px;color:var(--t3)">Sin interés</div>`}
+          ${c.descripcion?`<div style="font-size:11px;color:var(--t3)">${c.descripcion}</div>`:''}
+        </div>
+        <div style="font-size:14px;font-weight:700;color:var(--pos);text-align:right">${fmt(c.valor)}</div>
+      </div>`).join('')}</div>`
+    :`<div class="empty-msg">Sin cuentas. Toca + para agregar.</div>`;
+
+  // ── Propiedades ───────────────────────────
+  const totalProps=state.patrimonio.propiedades.reduce((a,p)=>a+p.valorAprox,0);
+  document.getElementById('fin-props-list').innerHTML=state.patrimonio.propiedades.length
+    ?`<div class="card" style="padding:0 14px">${state.patrimonio.propiedades.map(p=>`
+      <div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:0.5px solid var(--brd);cursor:pointer" onclick="openPropModal(${p.id})">
+        <div style="width:38px;height:38px;border-radius:11px;background:#FAEEDA;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${PROP_ICONS[p.tipo]||'📦'}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;color:var(--t1)">${p.nombre}</div>
+          ${p.descripcion?`<div style="font-size:11px;color:var(--t3)">${p.descripcion}</div>`:''}
+        </div>
+        <div style="font-size:14px;font-weight:700;color:#BA7517;text-align:right">${fmt(p.valorAprox)}</div>
+      </div>`).join('')}</div>`
+    :`<div class="empty-msg">Sin propiedades. Toca + para agregar.</div>`;
+
+  // ── Total patrimonio neto ─────────────────
+  const totalDeudas=state.deudas.filter(d=>d.type==='debo').reduce((a,d)=>a+(d.valActual||0),0);
+  const patrimonioNeto=totalCuentas+totalProps-totalDeudas;
+  document.getElementById('fin-patrimonio-total').innerHTML=`
+    <div class="card" style="padding:16px;background:${patrimonioNeto>=0?'#E1F5EE':'#FAECE7'}">
+      <div style="font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Patrimonio neto</div>
+      <div style="font-size:32px;font-weight:700;color:${patrimonioNeto>=0?'var(--pos)':'var(--neg)'};">${fmt(patrimonioNeto)}</div>
+      <div style="display:flex;gap:16px;margin-top:10px;font-size:12px;color:var(--t2)">
+        <div>Ahorros: <span style="font-weight:600;color:var(--pos)">${fmt(totalCuentas)}</span></div>
+        <div>Activos: <span style="font-weight:600;color:#BA7517">${fmt(totalProps)}</span></div>
+        <div>Deudas: <span style="font-weight:600;color:var(--neg)">-${fmt(totalDeudas)}</span></div>
+      </div>
+    </div>`;
+
+  // ── Ingresos recurrentes ──────────────────
+  const FREQ_LABELS={diario:'Diario',semanal:'Semanal',quincenal:'Quincenal',mensual:'Mensual',bimestral:'Bimestral',trimestral:'Trimestral',anual:'Anual'};
+  document.getElementById('fin-recurrentes-list').innerHTML=state.ingresosRecurrentes.length
+    ?`<div class="card" style="padding:0 14px">${state.ingresosRecurrentes.map(r=>`
+      <div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:0.5px solid var(--brd);cursor:pointer" onclick="openRecurrenteModal(${r.id})">
+        <div style="width:38px;height:38px;border-radius:11px;background:#EEEDFE;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🔄</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;color:var(--t1)">${r.descripcion}</div>
+          <div style="font-size:11px;color:var(--t2)">${FREQ_LABELS[r.frecuencia]||r.frecuencia} · Día ${r.diaCobro}</div>
+        </div>
+        <div style="font-size:14px;font-weight:700;color:var(--pos)">${fmt(r.monto)}</div>
+      </div>`).join('')}</div>`
+    :`<div class="empty-msg">Sin ingresos recurrentes.</div>`;
+}
+
+// ── CRUD Cuentas ──────────────────────────────────────────────────────────────
+function openCuentaModal(id){
+  editCuentaId=id;
+  const c=id?state.patrimonio.cuentas.find(x=>x.id===id):null;
+  document.getElementById('cuenta-modal-ttl').textContent=id?'Editar cuenta':'Nueva cuenta';
+  document.getElementById('btn-cuenta-del').classList.toggle('hidden',id==null);
+  document.getElementById('inp-cuenta-nombre').value=c?c.nombre:'';
+  document.getElementById('inp-cuenta-tipo').value=c?c.tipo:'efectivo';
+  document.getElementById('inp-cuenta-valor').value=c?c.valor:'';
+  document.getElementById('inp-cuenta-interes').value=c?c.interes:'';
+  document.getElementById('inp-cuenta-desc').value=c?c.descripcion:'';
+  openModal('modal-cuenta');
+  setTimeout(()=>document.getElementById('inp-cuenta-nombre').focus(),100);
+}
+function saveCuenta(){
+  const nombre=document.getElementById('inp-cuenta-nombre').value.trim();if(!nombre)return;
+  const obj={nombre,tipo:document.getElementById('inp-cuenta-tipo').value,valor:parseFloat(document.getElementById('inp-cuenta-valor').value)||0,interes:parseFloat(document.getElementById('inp-cuenta-interes').value)||0,descripcion:document.getElementById('inp-cuenta-desc').value.trim()};
+  if(editCuentaId){const c=state.patrimonio.cuentas.find(x=>x.id===editCuentaId);if(c)Object.assign(c,obj);}
+  else state.patrimonio.cuentas.push({id:uid(),...obj});
+  closeModal('modal-cuenta');autoSave();renderPatrimonio();
+}
+function deleteCuenta(){state.patrimonio.cuentas=state.patrimonio.cuentas.filter(x=>x.id!==editCuentaId);closeModal('modal-cuenta');autoSave();renderPatrimonio();}
+
+// ── CRUD Propiedades ──────────────────────────────────────────────────────────
+function openPropModal(id){
+  editPropId=id;
+  const p=id?state.patrimonio.propiedades.find(x=>x.id===id):null;
+  document.getElementById('prop-modal-ttl').textContent=id?'Editar propiedad':'Nueva propiedad';
+  document.getElementById('btn-prop-del').classList.toggle('hidden',id==null);
+  document.getElementById('inp-prop-nombre').value=p?p.nombre:'';
+  document.getElementById('inp-prop-tipo').value=p?p.tipo:'inmueble';
+  document.getElementById('inp-prop-valor').value=p?p.valorAprox:'';
+  document.getElementById('inp-prop-desc').value=p?p.descripcion:'';
+  openModal('modal-prop');
+  setTimeout(()=>document.getElementById('inp-prop-nombre').focus(),100);
+}
+function saveProp(){
+  const nombre=document.getElementById('inp-prop-nombre').value.trim();if(!nombre)return;
+  const obj={nombre,tipo:document.getElementById('inp-prop-tipo').value,valorAprox:parseFloat(document.getElementById('inp-prop-valor').value)||0,descripcion:document.getElementById('inp-prop-desc').value.trim()};
+  if(editPropId){const p=state.patrimonio.propiedades.find(x=>x.id===editPropId);if(p)Object.assign(p,obj);}
+  else state.patrimonio.propiedades.push({id:uid(),...obj});
+  closeModal('modal-prop');autoSave();renderPatrimonio();
+}
+function deleteProp(){state.patrimonio.propiedades=state.patrimonio.propiedades.filter(x=>x.id!==editPropId);closeModal('modal-prop');autoSave();renderPatrimonio();}
+
+// ── CRUD Ingresos recurrentes ─────────────────────────────────────────────────
+function openRecurrenteModal(id){
+  editRecId=id;
+  const r=id?state.ingresosRecurrentes.find(x=>x.id===id):null;
+  document.getElementById('recurrente-modal-ttl').textContent=id?'Editar ingreso':'Ingreso recurrente';
+  document.getElementById('btn-rec-del').classList.toggle('hidden',id==null);
+  document.getElementById('inp-rec-desc').value=r?r.descripcion:'';
+  document.getElementById('inp-rec-monto').value=r?r.monto:'';
+  document.getElementById('inp-rec-frecuencia').value=r?r.frecuencia:'mensual';
+  document.getElementById('inp-rec-dia').value=r?r.diaCobro:'';
+  openModal('modal-recurrente');
+  setTimeout(()=>document.getElementById('inp-rec-desc').focus(),100);
+}
+function saveRecurrente(){
+  const descripcion=document.getElementById('inp-rec-desc').value.trim();if(!descripcion)return;
+  const obj={descripcion,monto:parseFloat(document.getElementById('inp-rec-monto').value)||0,frecuencia:document.getElementById('inp-rec-frecuencia').value,diaCobro:parseInt(document.getElementById('inp-rec-dia').value)||1,activo:true,ultimoCobro:''};
+  if(editRecId){const r=state.ingresosRecurrentes.find(x=>x.id===editRecId);if(r)Object.assign(r,obj);}
+  else state.ingresosRecurrentes.push({id:uid(),...obj});
+  closeModal('modal-recurrente');autoSave();renderPatrimonio();
+}
+function deleteRecurrente(){state.ingresosRecurrentes=state.ingresosRecurrentes.filter(x=>x.id!==editRecId);closeModal('modal-recurrente');autoSave();renderPatrimonio();}
+
+// ── ACCIONES BVC ──────────────────────────────────────────────────────────────
+function renderAcciones(){
+  const acciones=state.acciones;
+  const totalInvertido=acciones.reduce((a,ac)=>a+ac.cantidad*ac.precioCompra,0);
+  const totalActual=acciones.reduce((a,ac)=>a+ac.cantidad*ac.precioActual,0);
+  const ganancia=totalActual-totalInvertido;
+  const pctGanancia=totalInvertido>0?((ganancia/totalInvertido)*100).toFixed(1):0;
+
+  document.getElementById('fin-acciones-resumen').innerHTML=`
+    <div class="card" style="padding:16px;background:${ganancia>=0?'#E1F5EE':'#FAECE7'}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div style="font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Portafolio BVC</div>
+          <div style="font-size:28px;font-weight:700;color:var(--t1)">${fmt(totalActual)}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:16px;font-weight:700;color:${ganancia>=0?'var(--pos)':'var(--neg)'};">${ganancia>=0?'+':''}${fmt(ganancia)}</div>
+          <div style="font-size:12px;color:${ganancia>=0?'var(--pos)':'var(--neg)'};">${ganancia>=0?'▲':'▼'} ${Math.abs(pctGanancia)}%</div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--t2);margin-top:8px">Invertido: ${fmt(totalInvertido)}</div>
+    </div>`;
+
+  document.getElementById('fin-acciones-list').innerHTML=acciones.length
+    ?`<div class="card" style="padding:0 14px">${acciones.map(ac=>{
+        const valorActual=ac.cantidad*ac.precioActual;
+        const valorCompra=ac.cantidad*ac.precioCompra;
+        const gan=valorActual-valorCompra;
+        const pct=valorCompra>0?((gan/valorCompra)*100).toFixed(1):0;
+        return `<div style="padding:12px 0;border-bottom:0.5px solid var(--brd);cursor:pointer" onclick="openAccionModal(${ac.id})">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+            <div>
+              <div style="font-size:14px;font-weight:700;color:var(--t1)">${ac.ticker}</div>
+              <div style="font-size:11px;color:var(--t2)">${ac.nombre} · ${ac.cantidad} acciones</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:14px;font-weight:700;color:var(--t1)">${fmt(valorActual)}</div>
+              <div style="font-size:11px;font-weight:600;color:${gan>=0?'var(--pos)':'var(--neg)'};">${gan>=0?'+':''}${fmt(gan)} (${gan>=0?'+':''}${pct}%)</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:12px;font-size:11px;color:var(--t2)">
+            <span>Compra: ${fmt(ac.precioCompra)}/acc</span>
+            <span>Actual: ${fmt(ac.precioActual)}/acc</span>
+          </div>
+        </div>`;
+      }).join('')}</div>`
+    :`<div class="empty-msg">Sin acciones. Toca + para agregar.</div>`;
+}
+
+function openAccionModal(id){
+  editAccId=id;
+  const ac=id?state.acciones.find(x=>x.id===id):null;
+  document.getElementById('accion-modal-ttl').textContent=id?'Editar acción':'Nueva acción';
+  document.getElementById('btn-acc-del').classList.toggle('hidden',id==null);
+  document.getElementById('inp-acc-ticker').value=ac?ac.ticker:'';
+  document.getElementById('inp-acc-nombre').value=ac?ac.nombre:'';
+  document.getElementById('inp-acc-cantidad').value=ac?ac.cantidad:'';
+  document.getElementById('inp-acc-precio-compra').value=ac?ac.precioCompra:'';
+  document.getElementById('inp-acc-precio-actual').value=ac?ac.precioActual:'';
+  document.getElementById('inp-acc-fecha').value=ac?ac.fecha:TODAY_STR;
+  openModal('modal-accion');
+  setTimeout(()=>document.getElementById('inp-acc-ticker').focus(),100);
+}
+function saveAccion(){
+  const ticker=document.getElementById('inp-acc-ticker').value.trim().toUpperCase();if(!ticker)return;
+  const obj={ticker,nombre:document.getElementById('inp-acc-nombre').value.trim(),cantidad:parseInt(document.getElementById('inp-acc-cantidad').value)||0,precioCompra:parseFloat(document.getElementById('inp-acc-precio-compra').value)||0,precioActual:parseFloat(document.getElementById('inp-acc-precio-actual').value)||0,fecha:document.getElementById('inp-acc-fecha').value};
+  if(editAccId){const ac=state.acciones.find(x=>x.id===editAccId);if(ac)Object.assign(ac,obj);}
+  else state.acciones.push({id:uid(),...obj});
+  closeModal('modal-accion');autoSave();renderAcciones();
+}
+function deleteAccion(){state.acciones=state.acciones.filter(x=>x.id!==editAccId);closeModal('modal-accion');autoSave();renderAcciones();}
+
+// ── FLUJO DE CAJA ─────────────────────────────────────────────────────────────
+function renderFlujoCaja(){
+  const el=document.getElementById('fin-flujo-content');if(!el)return;
+  const gastos=state.movs.filter(m=>m.type==='gasto');
+  const porCat={};
+  gastos.forEach(m=>{porCat[m.cat]=(porCat[m.cat]||0)+m.val;});
+  const total=gastos.reduce((a,m)=>a+m.val,0);
+  const maxCat=Math.max(...Object.values(porCat),1);
+  const sorted=Object.entries(porCat).sort((a,b)=>b[1]-a[1]);
+
+  // Últimas 4 semanas
+  const semanas=[];
+  for(let i=3;i>=0;i--){
+    const start=new Date(TODAY);start.setDate(TODAY.getDate()-TODAY.getDay()+1-(i*7));
+    const end=new Date(start);end.setDate(start.getDate()+6);
+    const startStr=start.toISOString().split('T')[0];
+    const endStr=end.toISOString().split('T')[0];
+    const gastosSem=gastos.filter(m=>m.date>=startStr&&m.date<=endStr);
+    semanas.push({label:`S${4-i}`,total:gastosSem.reduce((a,m)=>a+m.val,0)});
+  }
+  const maxSem=Math.max(...semanas.map(s=>s.total),1);
+
+  el.innerHTML=`
+    <div class="slabel">Gasto por semana</div>
+    <div class="card" style="padding:16px">
+      <div style="display:flex;gap:8px;align-items:flex-end;height:80px;margin-bottom:8px">
+        ${semanas.map(s=>{
+          const h=Math.max(4,Math.round(s.total/maxSem*72));
+          return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+            <div style="font-size:10px;color:var(--t2);font-weight:600">${fmt(s.total).replace('$','')}</div>
+            <div style="width:100%;height:${h}px;background:var(--accent);border-radius:6px 6px 0 0;opacity:.85"></div>
+            <div style="font-size:10px;color:var(--t3)">${s.label}</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+    <div class="slabel" style="margin-top:4px">En qué gastas</div>
+    <div class="card" style="padding:14px 16px">
+      ${sorted.map(([cat,val])=>{
+        const pct=Math.round(val/total*100);
+        const barW=Math.round(val/maxCat*100);
+        const c=CATS_GASTO[cat]||CATS_GASTO['Otro'];
+        return `<div style="margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <span style="font-size:12px;font-weight:600;color:var(--t1)">${cat}</span>
+            <div style="text-align:right">
+              <span style="font-size:12px;font-weight:700;color:${c.color}">${fmt(val)}</span>
+              <span style="font-size:10px;color:var(--t3);margin-left:4px">${pct}%</span>
+            </div>
+          </div>
+          <div style="height:6px;background:var(--bg3);border-radius:3px;overflow:hidden">
+            <div style="height:100%;width:${barW}%;background:${c.color};border-radius:3px"></div>
+          </div>
+        </div>`;
+      }).join('')||'<div class="empty-msg">Sin gastos registrados</div>'}
+    </div>`;
+}
+
+// ── ACTUALIZAR saveDeuda con nuevos campos ────────────────────────────────────
+const _oldSaveDeuda=saveDeuda;
+saveDeuda=function(){
+  const persona=document.getElementById('inp-deuda-persona').value.trim();if(!persona)return;
+  const desc=document.getElementById('inp-deuda-desc').value.trim();
+  const origen=document.getElementById('inp-deuda-origen').value;
+  const entidadTipo=document.getElementById('inp-deuda-entidad-tipo')?.value||'otro';
+  const valOriginal=parseFloat(document.getElementById('inp-deuda-original').value)||0;
+  const valActual=parseFloat(document.getElementById('inp-deuda-actual').value)||valOriginal;
+  const interes=parseFloat(document.getElementById('inp-deuda-interes').value)||0;
+  const fechaInicio=document.getElementById('inp-deuda-fecha').value;
+  const fechaPago=document.getElementById('inp-deuda-fecha-pago')?.value||'';
+  const cuotasMeta=parseInt(document.getElementById('inp-deuda-cuotas-meta').value)||0;
+  const cuotasPagadas=parseInt(document.getElementById('inp-deuda-cuotas-pag').value)||0;
+  const cuotaMensual=parseFloat(document.getElementById('inp-deuda-cuota-mensual')?.value)||0;
+  const notas=document.getElementById('inp-deuda-notas').value.trim();
+  if(!valOriginal&&!valActual)return;
+  const obj={persona,desc,origen,entidadTipo,valOriginal,valActual,interes,fechaInicio,fechaPago,cuotasMeta,cuotasPagadas,cuotaMensual,notas,type:selDeudaTipo_};
+  if(editDeudaId){const d=state.deudas.find(x=>x.id===editDeudaId);if(d)Object.assign(d,obj);}
+  else state.deudas.push({id:uid(),...obj});
+  closeModal('modal-deuda');autoSave();renderDeudas();
+};
+
+// ── ACTUALIZAR renderDeudas con fecha de pago y entidad ──────────────────────
+const _oldRenderDeudas=renderDeudas;
+renderDeudas=function(){
+  const md=state.deudas.filter(d=>d.type==='me-deben');
+  const db=state.deudas.filter(d=>d.type==='debo');
+  const tMD=md.reduce((a,d)=>a+(d.valActual||d.valOriginal||0),0);
+  const tDB=db.reduce((a,d)=>a+(d.valActual||d.valOriginal||0),0);
+
+  const deudaCard=d=>{
+    const isMD=d.type==='me-deben';
+    const valAct=d.valActual||d.valOriginal||0;
+    const valOri=d.valOriginal||valAct;
+    const pctPagado=valOri>0?Math.min(100,Math.round((valOri-valAct)/valOri*100)):0;
+    const col=isMD?'var(--pos)':'var(--neg)';
+    const bg=isMD?'#E1F5EE':'#FAECE7';
+    const diasPago=d.fechaPago?Math.round((new Date(d.fechaPago+'T00:00:00')-new Date(TODAY_STR+'T00:00:00'))/86400000):null;
+    const venceProx=diasPago!==null&&diasPago<=5&&diasPago>=0;
+    return `<div style="padding:12px 0;border-bottom:0.5px solid var(--brd);cursor:pointer" onclick="openDeudaModal(${d.id})">
+      <div style="display:flex;align-items:flex-start;gap:10px">
+        <div style="width:38px;height:38px;border-radius:11px;background:${bg};display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${ENTIDAD_ICONS[d.entidadTipo]||'👤'}</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div>
+              <div style="font-size:14px;font-weight:600;color:var(--t1)">${d.persona}</div>
+              <div style="font-size:11px;color:var(--t2)">${d.origen||''}</div>
+            </div>
+            <div style="text-align:right;flex-shrink:0;margin-left:8px">
+              <div style="font-size:14px;font-weight:700;color:${col}">${isMD?'+':'-'}${fmt(valAct)}</div>
+              ${valAct!==valOri?`<div style="font-size:10px;color:var(--t3)">de ${fmt(valOri)}</div>`:''}
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:5px;flex-wrap:wrap;align-items:center">
+            ${d.interes>0?`<span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;background:#FAEEDA;color:#633806">${d.interes}% mensual</span>`:''}
+            ${d.cuotasMeta>0?`<span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;background:var(--bg2);color:var(--t2)">${d.cuotasPagadas}/${d.cuotasMeta} cuotas</span>`:''}
+            ${d.cuotaMensual>0?`<span style="font-size:10px;color:var(--t2)">Cuota: ${fmt(d.cuotaMensual)}</span>`:''}
+          </div>
+          ${d.fechaPago?`<div style="font-size:11px;font-weight:600;color:${venceProx?'var(--neg)':'var(--t2)'};margin-top:4px">${venceProx?'⚠️ ':''}Próx. pago: ${fmtDate(d.fechaPago)}${diasPago===0?' (hoy)':diasPago===1?' (mañana)':diasPago>0?' (en '+diasPago+' días)':' (vencido)'}</div>`:''}
+          ${valOri>0?`<div style="margin-top:6px"><div class="prog-bar"><div class="prog-fill" style="width:${pctPagado}%;background:${col}"></div></div></div>`:''}
+        </div>
+      </div>
+    </div>`;
+  };
+
+  document.getElementById('fin-me-deben').innerHTML=md.length?md.map(deudaCard).join(''):`<div class="empty-msg">Nadie te debe</div>`;
+  document.getElementById('fin-debo').innerHTML=db.length?db.map(deudaCard).join(''):`<div class="empty-msg">No debes nada</div>`;
+  document.getElementById('fin-deudas-stats').innerHTML=`
+    <div class="mstat"><div class="mval" style="color:var(--pos)">${fmt(tMD)}</div><div class="mlbl">Me deben</div></div>
+    <div class="mstat"><div class="mval" style="color:var(--neg)">${fmt(tDB)}</div><div class="mlbl">Debo total</div></div>`;
+};
+
 initSupabase();
 loadDataWithCloud().then(()=>{
   checkRecurrentes();
@@ -3965,6 +4365,117 @@ if('serviceWorker' in navigator && location.protocol==='https:'){
     <div class="btn-row">
       <button class="btn-del hidden" id="btn-nota-full-del" onclick="deleteNotaFull()">🗑 Eliminar</button>
       <button class="btn-main" onclick="saveNotaFull()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CUENTA/AHORRO -->
+<div class="modal-overlay" id="modal-cuenta" style="display:none" onclick="if(event.target===this)closeModal('modal-cuenta')">
+  <div class="modal">
+    <div class="modal-handle-wrap"><div class="modal-handle"></div></div>
+    <div class="modal-title" id="cuenta-modal-ttl">Nueva cuenta</div>
+    <label class="inp-label">Nombre</label>
+    <input class="inp" id="inp-cuenta-nombre" placeholder="Ej: Efectivo, Fondo Porvenir..." maxlength="50">
+    <label class="inp-label">Tipo</label>
+    <select class="inp-sel" id="inp-cuenta-tipo">
+      <option value="efectivo">💵 Efectivo en casa</option>
+      <option value="fondo">📈 Fondo de inversión</option>
+      <option value="banco">🏦 Cuenta bancaria</option>
+      <option value="digital">📱 Billetera digital</option>
+      <option value="otro">📦 Otro</option>
+    </select>
+    <label class="inp-label">Valor actual (COP $)</label>
+    <input class="inp" id="inp-cuenta-valor" type="number" min="0" placeholder="0">
+    <label class="inp-label">Interés anual (%) — 0 si no genera</label>
+    <input class="inp" id="inp-cuenta-interes" type="number" min="0" step="0.01" placeholder="0">
+    <label class="inp-label">Descripción (opcional)</label>
+    <input class="inp" id="inp-cuenta-desc" placeholder="Ej: Fondo pensiones voluntarias..." maxlength="80">
+    <div class="btn-row">
+      <button class="btn-del hidden" id="btn-cuenta-del" onclick="deleteCuenta()">🗑 Eliminar</button>
+      <button class="btn-main" onclick="saveCuenta()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PROPIEDAD -->
+<div class="modal-overlay" id="modal-prop" style="display:none" onclick="if(event.target===this)closeModal('modal-prop')">
+  <div class="modal">
+    <div class="modal-handle-wrap"><div class="modal-handle"></div></div>
+    <div class="modal-title" id="prop-modal-ttl">Nueva propiedad</div>
+    <label class="inp-label">Nombre</label>
+    <input class="inp" id="inp-prop-nombre" placeholder="Ej: Apartamento, Mazda 2022..." maxlength="50">
+    <label class="inp-label">Tipo</label>
+    <select class="inp-sel" id="inp-prop-tipo">
+      <option value="inmueble">🏠 Inmueble</option>
+      <option value="vehiculo">🚗 Vehículo</option>
+      <option value="negocio">🏢 Negocio</option>
+      <option value="otro">📦 Otro</option>
+    </select>
+    <label class="inp-label">Valor aproximado (COP $)</label>
+    <input class="inp" id="inp-prop-valor" type="number" min="0" placeholder="0">
+    <label class="inp-label">Descripción (opcional)</label>
+    <input class="inp" id="inp-prop-desc" placeholder="Ej: Calle 45 # 12-30, Placa ABC123..." maxlength="80">
+    <div class="btn-row">
+      <button class="btn-del hidden" id="btn-prop-del" onclick="deleteProp()">🗑 Eliminar</button>
+      <button class="btn-main" onclick="saveProp()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL INGRESO RECURRENTE -->
+<div class="modal-overlay" id="modal-recurrente" style="display:none" onclick="if(event.target===this)closeModal('modal-recurrente')">
+  <div class="modal">
+    <div class="modal-handle-wrap"><div class="modal-handle"></div></div>
+    <div class="modal-title" id="recurrente-modal-ttl">Ingreso recurrente</div>
+    <label class="inp-label">Descripción</label>
+    <input class="inp" id="inp-rec-desc" placeholder="Ej: Salario, Arriendo, Freelance..." maxlength="50">
+    <label class="inp-label">Monto (COP $)</label>
+    <input class="inp" id="inp-rec-monto" type="number" min="0" placeholder="0">
+    <label class="inp-label">Frecuencia</label>
+    <select class="inp-sel" id="inp-rec-frecuencia">
+      <option value="diario">Diario</option>
+      <option value="semanal">Semanal</option>
+      <option value="quincenal">Quincenal</option>
+      <option value="mensual">Mensual</option>
+      <option value="bimestral">Bimestral</option>
+      <option value="trimestral">Trimestral</option>
+      <option value="anual">Anual</option>
+    </select>
+    <label class="inp-label">Día de cobro</label>
+    <input class="inp" id="inp-rec-dia" type="number" min="1" max="31" placeholder="Ej: 1, 15, 30">
+    <div class="btn-row">
+      <button class="btn-del hidden" id="btn-rec-del" onclick="deleteRecurrente()">🗑 Eliminar</button>
+      <button class="btn-main" onclick="saveRecurrente()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL ACCIÓN -->
+<div class="modal-overlay" id="modal-accion" style="display:none" onclick="if(event.target===this)closeModal('modal-accion')">
+  <div class="modal">
+    <div class="modal-handle-wrap"><div class="modal-handle"></div></div>
+    <div class="modal-title" id="accion-modal-ttl">Nueva acción</div>
+    <label class="inp-label">Ticker (símbolo)</label>
+    <input class="inp" id="inp-acc-ticker" placeholder="Ej: ECOPETROL, BANCOLOMBIA, PFBCOLOM" maxlength="20" style="text-transform:uppercase">
+    <label class="inp-label">Nombre de la empresa</label>
+    <input class="inp" id="inp-acc-nombre" placeholder="Ej: Ecopetrol S.A." maxlength="50">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div>
+        <label class="inp-label">Cantidad de acciones</label>
+        <input class="inp" id="inp-acc-cantidad" type="number" min="1" placeholder="0">
+      </div>
+      <div>
+        <label class="inp-label">Precio de compra ($)</label>
+        <input class="inp" id="inp-acc-precio-compra" type="number" min="0" placeholder="0">
+      </div>
+    </div>
+    <label class="inp-label">Precio actual ($)</label>
+    <input class="inp" id="inp-acc-precio-actual" type="number" min="0" placeholder="0">
+    <label class="inp-label">Fecha de compra</label>
+    <input class="inp" id="inp-acc-fecha" type="date">
+    <div class="btn-row">
+      <button class="btn-del hidden" id="btn-acc-del" onclick="deleteAccion()">🗑 Eliminar</button>
+      <button class="btn-main" onclick="saveAccion()">Guardar</button>
     </div>
   </div>
 </div>
