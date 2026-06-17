@@ -449,6 +449,7 @@ input,select,textarea,button{font-family:var(--font)}
           <button class="tab-btn" onclick="switchFinTab('flujo',this)" style="padding:8px 14px;flex:none">Flujo</button>
           <button class="tab-btn" onclick="switchFinTab('patrimonio',this)" style="padding:8px 14px;flex:none">Patrimonio</button>
           <button class="tab-btn" onclick="switchFinTab('acciones',this)" style="padding:8px 14px;flex:none">Acciones</button>
+          <button class="tab-btn" onclick="switchFinTab('ahorros',this)" style="padding:8px 14px;flex:none">Ahorros</button>
           <button class="tab-btn" onclick="switchFinTab('deudas',this)" style="padding:8px 14px;flex:none">Deudas</button>
           <button class="tab-btn" onclick="switchFinTab('subs',this)" style="padding:8px 14px;flex:none">Suscripciones</button>
         </div>
@@ -485,6 +486,14 @@ input,select,textarea,button{font-family:var(--font)}
         <div id="fin-acciones-resumen" style="margin-bottom:10px"></div>
         <div id="fin-acciones-list"></div>
         <button class="add-btn" onclick="openAccionModal(null)">+ Nueva acción</button>
+      </div>
+      <div id="fin-tab-ahorros" style="display:none">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div class="slabel" style="margin:0">Mis ahorros</div>
+          <div style="width:28px;height:28px;border-radius:8px;background:var(--accent);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;color:#fff" onclick="openAhorroModal(null)">+</div>
+        </div>
+        <div id="fin-ahorros-resumen" style="margin-bottom:10px"></div>
+        <div id="fin-ahorros-list"></div>
       </div>
       <div id="fin-tab-deudas" style="display:none">
         <div class="tabs">
@@ -1166,8 +1175,17 @@ async function loadFromCloud(){
       .eq('user_id', USER_ID)
       .single();
     if(error || !data || !data.data || Object.keys(data.data).length === 0) return false;
-    // Merge con state por defecto
-    Object.keys(data.data).forEach(k => { if(k in state) state[k] = data.data[k]; });
+    // Merge completo: datos de nube tienen prioridad sobre defaults del state
+    // pero se preservan keys nuevas que no existían en la nube
+    Object.keys(data.data).forEach(k => { state[k] = data.data[k]; });
+    // Inicializar keys nuevas que no existen en la nube con valores vacíos
+    if(!state.ahorros) state.ahorros=[];
+    if(!state.acciones) state.acciones=[];
+    if(!state.patrimonio) state.patrimonio={cuentas:[],propiedades:[]};
+    if(!state.ingresosRecurrentes) state.ingresosRecurrentes=[];
+    if(!state.ideasContenido) state.ideasContenido=[];
+    if(!state.notasRapidas) state.notasRapidas=[];
+    if(!state.eventos) state.eventos=[];
     console.log('✅ Datos cargados desde la nube', data.updated_at);
     return true;
   } catch(e) {
@@ -1252,20 +1270,19 @@ function loadData(){
 async function loadDataWithCloud(){
   // 1. Cargar localStorage primero (instantáneo)
   loadData();
-  renderHome();
-  // 2. Intentar cargar desde nube (puede tener datos más recientes)
+  // 2. Cargar desde nube — tiene prioridad si hay datos
   const cloudLoaded = await loadFromCloud();
   if(cloudLoaded){
-    // Resetear rutinas si es día nuevo
     const lastDay=localStorage.getItem('miapp_lastday');
     if(lastDay!==TODAY_STR){
       state.rutinas.forEach(r=>r.items.forEach(i=>i.done=false));
       localStorage.setItem('miapp_lastday',TODAY_STR);
     }
-    saveData(); // Sincronizar nube → localStorage
-    renderHome(); // Re-renderizar con datos de nube
+    saveData();
     showSyncIndicator('ok');
   }
+  // 3. Renderizar con los datos finales (locales o de nube)
+  renderHome();
 }
 
 // Guardar automáticamente cada vez que cambia el state
@@ -1316,24 +1333,10 @@ let state={
   ],
   peso:62,
   empresas:[],
-  patrimonio:{
-    cuentas:[
-      {id:1,nombre:'Efectivo en casa',tipo:'efectivo',valor:500000,interes:0,descripcion:''},
-      {id:2,nombre:'Fondo Porvenir',tipo:'fondo',valor:2500000,interes:4.5,descripcion:'Fondo de pensiones voluntarias'},
-    ],
-    propiedades:[
-      {id:1,nombre:'Apartamento',tipo:'inmueble',valorAprox:180000000,descripcion:'Calle 45 # 12-30'},
-      {id:2,nombre:'Vehículo',tipo:'vehiculo',valorAprox:45000000,descripcion:'Mazda 2022'},
-    ],
-  },
-  ingresosRecurrentes:[
-    {id:1,descripcion:'Salario',monto:3200000,frecuencia:'mensual',diaCobro:1,activo:true,ultimoCobro:''},
-    {id:2,descripcion:'Arriendo local',monto:800000,frecuencia:'mensual',diaCobro:5,activo:true,ultimoCobro:''},
-  ],
-  acciones:[
-    {id:1,ticker:'ECOPETROL',nombre:'Ecopetrol',cantidad:100,precioCompra:2150,precioActual:2280,fecha:'2024-08-15'},
-    {id:2,ticker:'BANCOLOMBIA',nombre:'Bancolombia',cantidad:50,precioCompra:41200,precioActual:43500,fecha:'2024-06-20'},
-  ],
+  patrimonio:{cuentas:[],propiedades:[]},
+  ingresosRecurrentes:[],
+  ahorros:[],
+  acciones:[],
   perfil:{nombre:'',edad:'',altura:'',sexo:'',meta_peso:'',meta_agua:2,meta_sueno:7},
   registros:[
     {id:1,fecha:'2025-05-19',peso:63.2,agua:1.5,sueno:6.5},
@@ -1648,7 +1651,7 @@ function movRowHTML(m){
   return `<div class="mov-row"><div class="mov-icon" style="background:${c.bg||'#E1F5EE'}"><i class="ti ${c.icon}" style="color:${c.color||'var(--pos)'}"></i></div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500;color:var(--t1)">${m.desc}</div><div style="font-size:11px;color:var(--t2)">${fmtDate(m.date)}</div></div><div style="font-size:13px;font-weight:600;color:${isI?'var(--pos)':'var(--neg)'}">${isI?'+':'-'}${fmt(m.val)}</div><i class="ti ti-dots-vertical" style="font-size:14px;color:var(--t3);cursor:pointer;margin-left:6px" onclick="openMovModal(${m.id})"></i></div>`;
 }
 function switchFinTab(id,btn){
-  ['resumen','movs','deudas','subs','flujo','patrimonio','acciones'].forEach(t=>{const el=document.getElementById('fin-tab-'+t);if(el)el.style.display='none';});
+  ['resumen','movs','deudas','subs','flujo','patrimonio','acciones','ahorros'].forEach(t=>{const el=document.getElementById('fin-tab-'+t);if(el)el.style.display='none';});
   const tab=document.getElementById('fin-tab-'+id);if(tab)tab.style.display='block';
   document.querySelectorAll('#s-finanzas .tab-btn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');
   if(id==='movs')renderMovsList();
@@ -1657,6 +1660,7 @@ function switchFinTab(id,btn){
   if(id==='flujo')renderFlujoCaja();
   if(id==='patrimonio')renderPatrimonio();
   if(id==='acciones')renderAcciones();
+  if(id==='ahorros')renderAhorros();
 }
 function renderMovsList(){
   const filtered=finMovFilter?state.movs.filter(m=>m.type===finMovFilter):state.movs;
@@ -4205,6 +4209,172 @@ renderDeudas=function(){
     <div class="mstat"><div class="mval" style="color:var(--neg)">${fmt(tDB)}</div><div class="mlbl">Debo total</div></div>`;
 };
 
+// ═══════════════════════════════════════════
+// AHORROS
+// ═══════════════════════════════════════════
+const AHORRO_TIPO_ICONS={fondo_empleados:'🏛️',afc:'🏠',caja:'🏢',cooperativa:'🤝',fondo_privado:'📈',otro:'📦'};
+const AHORRO_TIPO_LABELS={fondo_empleados:'Fondo empleados',afc:'AFC',caja:'Caja compensación',cooperativa:'Cooperativa',fondo_privado:'Fondo privado',otro:'Otro'};
+
+let editAhorroId=null,editAporteId=null,ahorroAporteParentId=null,selAhorroColor='#1D9E75';
+
+function renderAhorros(){
+  const total=state.ahorros.reduce((a,ah)=>a+ah.acumulado,0);
+  const totalMeta=state.ahorros.reduce((a,ah)=>a+ah.meta,0);
+  const totalMensual=state.ahorros.reduce((a,ah)=>a+ah.aporteMensual,0);
+
+  // Resumen
+  document.getElementById('fin-ahorros-resumen').innerHTML=`
+    <div class="card" style="padding:16px;background:#E1F5EE">
+      <div style="font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Total ahorrado</div>
+      <div style="font-size:32px;font-weight:700;color:var(--pos)">${fmt(total)}</div>
+      <div style="margin-top:8px">
+        <div class="prog-bar" style="height:8px;margin-bottom:6px">
+          <div class="prog-fill" style="width:${Math.min(100,Math.round(total/Math.max(totalMeta,1)*100))}%;background:var(--pos)"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--t2)">
+          <span>${Math.round(total/Math.max(totalMeta,1)*100)}% de la meta</span>
+          <span>Meta: ${fmt(totalMeta)}</span>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--pos);font-weight:600;margin-top:8px">Aporte mensual: ${fmt(totalMensual)}/mes</div>
+    </div>`;
+
+  // Lista de ahorros
+  if(!state.ahorros.length){
+    document.getElementById('fin-ahorros-list').innerHTML=`<div class="empty-msg">Sin ahorros. Toca + para crear uno.</div>`;
+    return;
+  }
+
+  document.getElementById('fin-ahorros-list').innerHTML=state.ahorros.map(ah=>{
+    const pct=Math.min(100,Math.round(ah.acumulado/Math.max(ah.meta,1)*100));
+    const mesesFaltan=ah.aporteMensual>0?Math.ceil((ah.meta-ah.acumulado)/ah.aporteMensual):null;
+    const ultAporte=ah.aportes.length?ah.aportes[ah.aportes.length-1]:null;
+    return `<div class="card" style="padding:14px 16px;border-left:4px solid ${ah.color}">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:40px;height:40px;border-radius:11px;background:${ah.color}22;display:flex;align-items:center;justify-content:center;font-size:20px">${AHORRO_TIPO_ICONS[ah.tipo]||'💰'}</div>
+          <div>
+            <div style="font-size:14px;font-weight:700;color:var(--t1)">${ah.nombre}</div>
+            <div style="font-size:11px;color:var(--t2)">${ah.entidad} · ${AHORRO_TIPO_LABELS[ah.tipo]||''}</div>
+            ${ah.interes>0?`<div style="font-size:11px;color:var(--pos)">Rinde ${ah.interes}% EA</div>`:''}
+          </div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <div style="width:28px;height:28px;border-radius:8px;background:${ah.color}22;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px" onclick="openAhorroModal(${ah.id})">✏️</div>
+          <div style="width:28px;height:28px;border-radius:8px;background:${ah.color};display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;color:#fff" onclick="openAporteModal(${ah.id},null)">+</div>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+        <div>
+          <div style="font-size:22px;font-weight:700;color:${ah.color}">${fmt(ah.acumulado)}</div>
+          <div style="font-size:11px;color:var(--t2)">de ${fmt(ah.meta)} meta</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:14px;font-weight:600;color:var(--t1)">${fmt(ah.aporteMensual)}/mes</div>
+          ${mesesFaltan&&mesesFaltan>0?`<div style="font-size:11px;color:var(--t2)">~${mesesFaltan} meses para llegar</div>`:''}
+        </div>
+      </div>
+      <div class="prog-bar" style="height:8px;margin-bottom:6px">
+        <div class="prog-fill" style="width:${pct}%;background:${ah.color}"></div>
+      </div>
+      <div style="font-size:11px;color:var(--t2);margin-bottom:${ah.aportes.length?'8px':'0'}">${pct}% completado</div>
+      ${ah.aportes.length?`
+        <div style="font-size:11px;font-weight:600;color:var(--t2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Últimos aportes</div>
+        ${ah.aportes.slice(-3).reverse().map(ap=>`
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:0.5px solid var(--brd);cursor:pointer" onclick="openAporteModal(${ah.id},${ap.id})">
+            <div>
+              <div style="font-size:12px;color:var(--t1)">${fmtDate(ap.fecha)}</div>
+              ${ap.notas?`<div style="font-size:11px;color:var(--t3)">${ap.notas}</div>`:''}
+            </div>
+            <div style="font-size:13px;font-weight:700;color:${ah.color}">+${fmt(ap.valor)}</div>
+          </div>`).join('')}`:''}
+    </div>`;
+  }).join('');
+}
+
+// ── CRUD Ahorro ───────────────────────────────────────────────────────────────
+function openAhorroModal(id){
+  editAhorroId=id;
+  const ah=id?state.ahorros.find(x=>x.id===id):null;
+  document.getElementById('ahorro-modal-ttl').textContent=id?'Editar ahorro':'Nuevo ahorro';
+  document.getElementById('btn-ah-del').classList.toggle('hidden',id==null);
+  document.getElementById('inp-ah-nombre').value=ah?ah.nombre:'';
+  document.getElementById('inp-ah-entidad').value=ah?ah.entidad:'';
+  document.getElementById('inp-ah-tipo').value=ah?ah.tipo:'fondo_empleados';
+  document.getElementById('inp-ah-meta').value=ah?ah.meta:'';
+  document.getElementById('inp-ah-acumulado').value=ah?ah.acumulado:'';
+  document.getElementById('inp-ah-aporte').value=ah?ah.aporteMensual:'';
+  document.getElementById('inp-ah-interes').value=ah?ah.interes:'';
+  selAhorroColor=ah?ah.color:COLORS[0];
+  renderColRow('ahorro-colors',selAhorroColor,c=>{selAhorroColor=c;});
+  openModal('modal-ahorro');
+  setTimeout(()=>document.getElementById('inp-ah-nombre').focus(),100);
+}
+function saveAhorro(){
+  const nombre=document.getElementById('inp-ah-nombre').value.trim();if(!nombre)return;
+  const obj={
+    nombre,
+    entidad:document.getElementById('inp-ah-entidad').value.trim(),
+    tipo:document.getElementById('inp-ah-tipo').value,
+    meta:parseFloat(document.getElementById('inp-ah-meta').value)||0,
+    acumulado:parseFloat(document.getElementById('inp-ah-acumulado').value)||0,
+    aporteMensual:parseFloat(document.getElementById('inp-ah-aporte').value)||0,
+    interes:parseFloat(document.getElementById('inp-ah-interes').value)||0,
+    color:selAhorroColor,
+  };
+  if(editAhorroId){
+    const ah=state.ahorros.find(x=>x.id===editAhorroId);
+    if(ah)Object.assign(ah,obj);
+  } else {
+    state.ahorros.push({id:uid(),...obj,aportes:[]});
+  }
+  closeModal('modal-ahorro');autoSave();renderAhorros();
+}
+function deleteAhorro(){
+  state.ahorros=state.ahorros.filter(x=>x.id!==editAhorroId);
+  closeModal('modal-ahorro');autoSave();renderAhorros();
+}
+
+// ── CRUD Aportes ──────────────────────────────────────────────────────────────
+function openAporteModal(ahorroId,aporteId){
+  ahorroAporteParentId=ahorroId;
+  editAporteId=aporteId;
+  const ah=state.ahorros.find(x=>x.id===ahorroId);
+  const ap=aporteId&&ah?ah.aportes.find(x=>x.id===aporteId):null;
+  const ttl=aporteId?'Editar aporte':`Aporte a ${ah?ah.nombre:''}`;
+  document.getElementById('aporte-modal-ttl').textContent=ttl;
+  document.getElementById('btn-aporte-del').classList.toggle('hidden',aporteId==null);
+  document.getElementById('inp-aporte-valor').value=ap?ap.valor:ah?ah.aporteMensual:'';
+  document.getElementById('inp-aporte-fecha').value=ap?ap.fecha:TODAY_STR;
+  document.getElementById('inp-aporte-notas').value=ap?ap.notas:'';
+  openModal('modal-aporte');
+  setTimeout(()=>document.getElementById('inp-aporte-valor').focus(),100);
+}
+function saveAporte(){
+  const valor=parseFloat(document.getElementById('inp-aporte-valor').value)||0;if(!valor)return;
+  const fecha=document.getElementById('inp-aporte-fecha').value||TODAY_STR;
+  const notas=document.getElementById('inp-aporte-notas').value.trim();
+  const ah=state.ahorros.find(x=>x.id===ahorroAporteParentId);if(!ah)return;
+  if(editAporteId){
+    const ap=ah.aportes.find(x=>x.id===editAporteId);
+    if(ap){
+      ah.acumulado+=valor-ap.valor; // ajustar diferencia
+      ap.valor=valor;ap.fecha=fecha;ap.notas=notas;
+    }
+  } else {
+    ah.aportes.push({id:uid(),valor,fecha,notas});
+    ah.acumulado+=valor;
+  }
+  closeModal('modal-aporte');autoSave();renderAhorros();
+}
+function deleteAporte(){
+  const ah=state.ahorros.find(x=>x.id===ahorroAporteParentId);if(!ah)return;
+  const ap=ah.aportes.find(x=>x.id===editAporteId);
+  if(ap){ah.acumulado=Math.max(0,ah.acumulado-ap.valor);}
+  ah.aportes=ah.aportes.filter(x=>x.id!==editAporteId);
+  closeModal('modal-aporte');autoSave();renderAhorros();
+}
+
 initSupabase();
 loadDataWithCloud().then(()=>{
   checkRecurrentes();
@@ -4476,6 +4646,65 @@ if('serviceWorker' in navigator && location.protocol==='https:'){
     <div class="btn-row">
       <button class="btn-del hidden" id="btn-acc-del" onclick="deleteAccion()">🗑 Eliminar</button>
       <button class="btn-main" onclick="saveAccion()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL AHORRO -->
+<div class="modal-overlay" id="modal-ahorro" style="display:none" onclick="if(event.target===this)closeModal('modal-ahorro')">
+  <div class="modal">
+    <div class="modal-handle-wrap"><div class="modal-handle"></div></div>
+    <div class="modal-title" id="ahorro-modal-ttl">Nuevo ahorro</div>
+    <label class="inp-label">Nombre del ahorro</label>
+    <input class="inp" id="inp-ah-nombre" placeholder="Ej: Fondo de empleados, AFC..." maxlength="50">
+    <label class="inp-label">Entidad donde está</label>
+    <input class="inp" id="inp-ah-entidad" placeholder="Ej: Fondo Empleados, Bancolombia..." maxlength="60">
+    <label class="inp-label">Tipo</label>
+    <select class="inp-sel" id="inp-ah-tipo">
+      <option value="fondo_empleados">🏛️ Fondo de empleados</option>
+      <option value="afc">🏠 AFC (Ahorro Fomento Construcción)</option>
+      <option value="caja">🏢 Caja de compensación</option>
+      <option value="cooperativa">🤝 Cooperativa de ahorro</option>
+      <option value="fondo_privado">📈 Fondo privado</option>
+      <option value="otro">📦 Otro</option>
+    </select>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div>
+        <label class="inp-label">Meta (COP $)</label>
+        <input class="inp" id="inp-ah-meta" type="number" min="0" placeholder="0">
+      </div>
+      <div>
+        <label class="inp-label">Acumulado actual</label>
+        <input class="inp" id="inp-ah-acumulado" type="number" min="0" placeholder="0">
+      </div>
+    </div>
+    <label class="inp-label">Aporte mensual (COP $)</label>
+    <input class="inp" id="inp-ah-aporte" type="number" min="0" placeholder="0">
+    <label class="inp-label">Interés anual (%) — 0 si no aplica</label>
+    <input class="inp" id="inp-ah-interes" type="number" min="0" step="0.01" placeholder="0">
+    <label class="inp-label">Color</label>
+    <div class="color-row" id="ahorro-colors"></div>
+    <div class="btn-row">
+      <button class="btn-del hidden" id="btn-ah-del" onclick="deleteAhorro()">🗑 Eliminar</button>
+      <button class="btn-main" onclick="saveAhorro()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL APORTE -->
+<div class="modal-overlay" id="modal-aporte" style="display:none" onclick="if(event.target===this)closeModal('modal-aporte')">
+  <div class="modal">
+    <div class="modal-handle-wrap"><div class="modal-handle"></div></div>
+    <div class="modal-title" id="aporte-modal-ttl">Registrar aporte</div>
+    <label class="inp-label">Valor del aporte (COP $)</label>
+    <input class="inp" id="inp-aporte-valor" type="number" min="0" placeholder="0">
+    <label class="inp-label">Fecha</label>
+    <input class="inp" id="inp-aporte-fecha" type="date">
+    <label class="inp-label">Notas (opcional)</label>
+    <input class="inp" id="inp-aporte-notas" placeholder="Ej: Aporte extra, bono..." maxlength="60">
+    <div class="btn-row">
+      <button class="btn-del hidden" id="btn-aporte-del" onclick="deleteAporte()">🗑 Eliminar</button>
+      <button class="btn-main" onclick="saveAporte()">Guardar</button>
     </div>
   </div>
 </div>
