@@ -1177,8 +1177,15 @@ async function loadFromCloud(){
     if(error || !data || !data.data || Object.keys(data.data).length === 0) return false;
     // Merge completo: datos de nube tienen prioridad sobre defaults del state
     // pero se preservan keys nuevas que no existían en la nube
-    Object.keys(data.data).forEach(k => { state[k] = data.data[k]; });
-    // Inicializar keys nuevas que no existen en la nube con valores vacíos
+    const cloudData = data.data;
+    // Detectar si son datos de ejemplo (tienen tareas con fecha 2026-05-26)
+    const esEjemplo = cloudData.tasks && cloudData.tasks.some(t=>t.date==='2026-05-26'&&t.txt==='Tomar medicamento');
+    if(esEjemplo){
+      // Limpiar Supabase de datos de ejemplo
+      await supabaseClient.from('app_data').upsert({user_id:USER_ID,data:{}},{onConflict:'user_id'});
+      return false;
+    }
+    Object.keys(cloudData).forEach(k => { state[k] = cloudData[k]; });
     if(!state.ahorros) state.ahorros=[];
     if(!state.acciones) state.acciones=[];
     if(!state.patrimonio) state.patrimonio={cuentas:[],propiedades:[]};
