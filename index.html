@@ -4330,6 +4330,10 @@ function deleteAporte(){
 }
 
 initSupabase();
+   window.addEventListener('beforeunload', () => {
+  if(syncTimeout) clearTimeout(syncTimeout);
+  saveToCloud();
+});
 loadDataWithCloud().then(()=>{
   checkRecurrentes();
   setTimeout(recordScoreHoy, 2000);
