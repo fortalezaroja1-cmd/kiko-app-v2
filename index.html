@@ -4385,9 +4385,9 @@ loadDataWithCloud().then(()=>{
 </div>
 
 <script>
-if('serviceWorker' in navigator && location.protocol==='https:'){
-  window.addEventListener('load',()=>{
-    navigator.serviceWorker.register('./sw.js').catch(()=>{});
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.getRegistrations().then(regs=>{
+    regs.forEach(r=>r.unregister());
   });
 }
 </script>
