@@ -1288,16 +1288,8 @@ async function loadDataWithCloud(){
     saveData();
     showSyncIndicator('ok');
   } else {
-    // Supabase vacío — NO guardar datos de ejemplo, resetear state
-    state.tasks=[];state.objectives=[];state.movs=[];state.deudas=[];
-    state.subs=[];state.counters=[];state.habitos=[];state.meds=[];
-    state.registros=[];state.retos=[];state.eventos=[];state.contenido=[];
-    state.ideasContenido=[];state.notasRapidas=[];state.empresas=[];
-    state.xp=0;state.racha=0;state.mejorRacha=0;state.peso=0;
-    state.historialScore=[];state.rutinas=[
-      {id:1,nombre:'Rutina mañana',emoji:'🌅',items:[]},
-      {id:2,nombre:'Rutina noche',emoji:'🌙',items:[]}
-    ];
+    // Supabase vacío o falló — conservar localStorage, NO resetear
+    console.log('⚠️ Supabase sin datos, usando localStorage');
   }
   // 3. Renderizar
   renderHome();
