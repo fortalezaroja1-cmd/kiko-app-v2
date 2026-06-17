@@ -1204,9 +1204,9 @@ async function loadFromCloud(){
 // Guardar con debounce — espera 2 segundos de inactividad
 function autoSave(){
   // Guardar en localStorage inmediatamente
-  saveData();
-  // Guardar en nube con debounce
-  if(syncTimeout) clearTimeout(syncTimeout);
+ 1207    saveData();
+1208    saveToCloud();
+1209    // Guardar en nube con debounce
   syncTimeout = setTimeout(()=>{
     saveToCloud();
   }, 2000);
