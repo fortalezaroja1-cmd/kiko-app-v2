@@ -1285,9 +1285,6 @@ async function loadDataWithCloud(){
   renderHome();
 }
 
-// Guardar automáticamente cada vez que cambia el state
-function autoSave(){saveData();}
-
 let state={
   tasks:[
     {id:1,txt:'Tomar medicamento',tag:'Salud',weight:3,done:true,date:TODAY_STR},
@@ -4383,13 +4380,6 @@ loadDataWithCloud().then(()=>{
   setInterval(recordScoreHoy, 300000);
   setInterval(saveToCloud, 60000); // Sync cada minuto
 });
-renderHome();
-// Registrar score del día al cargar
-setTimeout(recordScoreHoy,2000);
-// Notificaciones del día
-setTimeout(checkNotificacionesDia,1000);
-// Guardar score cada 5 min
-setInterval(recordScoreHoy,300000);
 </script>
 
 
