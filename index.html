@@ -1268,9 +1268,9 @@ function loadData(){
 }
 
 async function loadDataWithCloud(){
-  // 1. Cargar localStorage primero (instantáneo)
+  // 1. Cargar localStorage primero
   loadData();
-  // 2. Cargar desde nube — tiene prioridad si hay datos
+  // 2. Cargar desde nube — tiene prioridad
   const cloudLoaded = await loadFromCloud();
   if(cloudLoaded){
     const lastDay=localStorage.getItem('miapp_lastday');
@@ -1280,8 +1280,19 @@ async function loadDataWithCloud(){
     }
     saveData();
     showSyncIndicator('ok');
+  } else {
+    // Supabase vacío — NO guardar datos de ejemplo, resetear state
+    state.tasks=[];state.objectives=[];state.movs=[];state.deudas=[];
+    state.subs=[];state.counters=[];state.habitos=[];state.meds=[];
+    state.registros=[];state.retos=[];state.eventos=[];state.contenido=[];
+    state.ideasContenido=[];state.notasRapidas=[];state.empresas=[];
+    state.xp=0;state.racha=0;state.mejorRacha=0;state.peso=0;
+    state.historialScore=[];state.rutinas=[
+      {id:1,nombre:'Rutina mañana',emoji:'🌅',items:[]},
+      {id:2,nombre:'Rutina noche',emoji:'🌙',items:[]}
+    ];
   }
-  // 3. Renderizar con los datos finales (locales o de nube)
+  // 3. Renderizar
   renderHome();
 }
 
