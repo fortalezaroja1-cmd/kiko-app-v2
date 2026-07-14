@@ -1390,8 +1390,10 @@ function navMain(mod){
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   const screenMap={home:'s-home',tareas:'s-tareas',finanzas:'s-finanzas',salud:'s-salud',negocios:'s-negocios',perfil:'s-perfil',retos:'s-retos',contenido:'s-contenido',eventos:'s-eventos',resumen:'s-resumen',rutinas:'s-rutinas',notas:'s-notas',admin:'s-admin'};
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
-  if(screenMap[mod]) document.getElementById(screenMap[mod]).classList.add('active');
-  document.getElementById('nb-'+mod).classList.add('active');
+  const screenEl=screenMap[mod]?document.getElementById(screenMap[mod]):null;
+  if(screenEl){screenEl.style.display='block';screenEl.classList.add('active');}
+  const nbEl=document.getElementById('nb-'+mod);
+  if(nbEl)nbEl.classList.add('active');
   const renders={home:renderHome,tareas:renderTareas,finanzas:renderFinanzas,salud:renderSalud,negocios:renderNegocios,perfil:renderPerfil,retos:renderRetos,contenido:renderContenido,eventos:renderEventos,resumen:renderResumen,rutinas:renderRutinasEditor,notas:renderNotasCompleto,admin:renderAdmin};
   if(renders[mod])renders[mod]();
   document.getElementById('main-navbar').style.display='flex';
