@@ -327,6 +327,21 @@ input,select,textarea,button{font-family:var(--font)}
 <body>
 <div id="app" data-theme="light">
 
+  <!-- PANTALLA DE LOGIN -->
+  <div id="login-screen" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;background:var(--bg0);padding:32px">
+    <div style="font-size:48px;margin-bottom:16px">✦</div>
+    <div style="font-size:28px;font-weight:700;color:var(--t1);letter-spacing:-.03em;margin-bottom:4px">KIKO</div>
+    <div style="font-size:13px;color:var(--t2);margin-bottom:40px">Tu app personal</div>
+    <div style="width:100%">
+      <label class="inp-label">Usuario</label>
+      <input class="inp" id="login-user" placeholder="Tu usuario" maxlength="30" autocomplete="username">
+      <label class="inp-label">Contraseña</label>
+      <input class="inp" id="login-pass" type="password" placeholder="••••••••" maxlength="30" autocomplete="current-password">
+      <div id="login-error" style="color:var(--neg);font-size:12px;margin-bottom:12px;display:none">Usuario o contraseña incorrectos</div>
+      <button class="btn-main" onclick="doLogin()" style="width:100%">Entrar</button>
+    </div>
+  </div>
+
   <!-- STATUS BAR -->
   <div class="statusbar">
     <span id="sb-time" style="font-family:var(--mono);font-size:12px"></span>
@@ -517,6 +532,22 @@ input,select,textarea,button{font-family:var(--font)}
        SCREEN: SALUD
   ══════════════════════════════════════ -->
   <!-- PERFIL -->
+  <div class="screen" id="s-admin" style="display:none">
+    <div class="topbar">
+      <div><div class="topbar-title">Panel Admin</div><div class="topbar-sub">Gestión de usuarios</div></div>
+      <div class="topbar-actions">
+        <div class="icon-btn" onclick="openUserModal(null)"><i class="ti ti-plus" style="font-size:18px;color:#fff"></i></div>
+      </div>
+    </div>
+    <div class="section">
+      <div id="admin-users-list"></div>
+      <button class="add-btn" onclick="openUserModal(null)">+ Nuevo usuario</button>
+      <div style="margin-top:16px;padding-top:16px;border-top:0.5px solid var(--brd)">
+        <button onclick="doLogout()" style="width:100%;background:var(--bg1);border:1px solid var(--neg);border-radius:10px;padding:12px;cursor:pointer;font-size:13px;font-weight:600;color:var(--neg);font-family:var(--font)">Cerrar sesión</button>
+      </div>
+    </div>
+  </div>
+
   <div class="screen" id="s-perfil">
     <div class="topbar">
       <div><div class="topbar-title">Mi perfil</div></div>
@@ -1139,7 +1170,7 @@ input,select,textarea,button{font-family:var(--font)}
 // SUPABASE — Persistencia en la nube
 // ═══════════════════════════════════════════
 const SUPABASE_URL = 'https://fixeusovoihjbtfrsgqs.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_NVjDAIxLvfYfzvGAXldNYA_pKN7c9tr';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpeGV1c292b2loamJ0ZnJzZ3FzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3MDM5MTMsImV4cCI6MjA5NzI3OTkxM30.bMX9HzQo5K_E7y4pVL3TBvgBZh0lOcHdYjRGr9gF2ps';
 const USER_ID = 'kiko_user';
 
 let supabaseClient = null;
@@ -1159,7 +1190,7 @@ async function saveToCloud(){
   try {
     const { error } = await supabaseClient
       .from('app_data')
-      .upsert({ user_id: USER_ID, data: state }, { onConflict: 'user_id' });
+      .upsert({ user_id: window.CURRENT_USER_ID||USER_ID, data: state }, { onConflict: 'user_id' });
     if(error) console.warn('Cloud save error:', error.message);
   } catch(e) {
     console.warn('Cloud save failed:', e);
@@ -1172,7 +1203,7 @@ async function loadFromCloud(){
     const { data, error } = await supabaseClient
       .from('app_data')
       .select('data, updated_at')
-      .eq('user_id', USER_ID)
+      .eq('user_id', window.CURRENT_USER_ID||USER_ID)
       .single();
     if(error || !data || !data.data || Object.keys(data.data).length === 0) return false;
     // Merge completo: datos de nube tienen prioridad sobre defaults del state
@@ -1204,8 +1235,7 @@ async function loadFromCloud(){
 // Guardar con debounce — espera 2 segundos de inactividad
 function autoSave(){
   // Guardar en localStorage inmediatamente
- saveData();
-  saveToCloud();
+  saveData();
   // Guardar en nube con debounce
   if(syncTimeout) clearTimeout(syncTimeout);
   syncTimeout = setTimeout(()=>{
@@ -1289,8 +1319,16 @@ async function loadDataWithCloud(){
     saveData();
     showSyncIndicator('ok');
   } else {
-    // Supabase vacío o falló — conservar localStorage, NO resetear
-    console.log('⚠️ Supabase sin datos, usando localStorage');
+    // Supabase vacío — NO guardar datos de ejemplo, resetear state
+    state.tasks=[];state.objectives=[];state.movs=[];state.deudas=[];
+    state.subs=[];state.counters=[];state.habitos=[];state.meds=[];
+    state.registros=[];state.retos=[];state.eventos=[];state.contenido=[];
+    state.ideasContenido=[];state.notasRapidas=[];state.empresas=[];
+    state.xp=0;state.racha=0;state.mejorRacha=0;state.peso=0;
+    state.historialScore=[];state.rutinas=[
+      {id:1,nombre:'Rutina mañana',emoji:'🌅',items:[]},
+      {id:2,nombre:'Rutina noche',emoji:'🌙',items:[]}
+    ];
   }
   // 3. Renderizar
   renderHome();
@@ -1320,9 +1358,19 @@ let state={
   logros_desbloqueados:[1,2],
   historialScore:[],
   notasRapidas:[],
- rutinas:[
-    {id:1,nombre:'Rutina mañana',emoji:'🌅',items:[]},
-    {id:2,nombre:'Rutina noche',emoji:'🌙',items:[]}
+  rutinas:[
+    {id:1,nombre:'Rutina mañana',emoji:'🌅',items:[
+      {id:11,txt:'Tomar medicamento',done:false},
+      {id:12,txt:'Hacer la cama',done:false},
+      {id:13,txt:'Desayunar bien',done:false},
+      {id:14,txt:'Revisar tareas del día',done:false},
+    ]},
+    {id:2,nombre:'Rutina noche',emoji:'🌙',items:[
+      {id:21,txt:'Medicamento noche',done:false},
+      {id:22,txt:'Anotar logros del día',done:false},
+      {id:23,txt:'Preparar ropa mañana',done:false},
+      {id:24,txt:'No celular 30 min antes',done:false},
+    ]},
   ],
   ideasContenido:[],
   perfil:{nombre:'',edad:'',altura:'',sexo:'',meta_peso:'',meta_agua:2,meta_sueno:7,foto:''},
@@ -1340,11 +1388,11 @@ function navMain(mod){
   currentModule=mod;
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
-  const screenMap={home:'s-home',tareas:'s-tareas',finanzas:'s-finanzas',salud:'s-salud',negocios:'s-negocios',perfil:'s-perfil',retos:'s-retos',contenido:'s-contenido',eventos:'s-eventos',resumen:'s-resumen',rutinas:'s-rutinas',notas:'s-notas'};
+  const screenMap={home:'s-home',tareas:'s-tareas',finanzas:'s-finanzas',salud:'s-salud',negocios:'s-negocios',perfil:'s-perfil',retos:'s-retos',contenido:'s-contenido',eventos:'s-eventos',resumen:'s-resumen',rutinas:'s-rutinas',notas:'s-notas',admin:'s-admin'};
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   if(screenMap[mod]) document.getElementById(screenMap[mod]).classList.add('active');
   document.getElementById('nb-'+mod).classList.add('active');
-  const renders={home:renderHome,tareas:renderTareas,finanzas:renderFinanzas,salud:renderSalud,negocios:renderNegocios,perfil:renderPerfil,retos:renderRetos,contenido:renderContenido,eventos:renderEventos,resumen:renderResumen,rutinas:renderRutinasEditor,notas:renderNotasCompleto};
+  const renders={home:renderHome,tareas:renderTareas,finanzas:renderFinanzas,salud:renderSalud,negocios:renderNegocios,perfil:renderPerfil,retos:renderRetos,contenido:renderContenido,eventos:renderEventos,resumen:renderResumen,rutinas:renderRutinasEditor,notas:renderNotasCompleto,admin:renderAdmin};
   if(renders[mod])renders[mod]();
   document.getElementById('main-navbar').style.display='flex';
 }
@@ -2045,6 +2093,7 @@ function renderPerfil(){
       </div>
     </div>
     <button class="add-btn" onclick="openPerfilModal()">✏️ Editar mi perfil</button>
+    <button onclick="doLogout()" style="width:100%;background:var(--bg1);border:1px solid var(--neg);border-radius:10px;padding:12px;cursor:pointer;font-size:13px;font-weight:600;color:var(--neg);font-family:var(--font);margin-top:8px">Cerrar sesión</button>
     <div style="display:flex;gap:8px;margin-top:4px">
       <button onclick="exportarDatos()" style="flex:1;background:var(--bg1);border:1px solid var(--brd);border-radius:14px;padding:12px;cursor:pointer;font-size:12px;font-weight:600;color:var(--t2);font-family:var(--font)">📤 Exportar datos</button>
       <button onclick="document.getElementById('inp-import').click()" style="flex:1;background:var(--bg1);border:1px solid var(--brd);border-radius:14px;padding:12px;cursor:pointer;font-size:12px;font-weight:600;color:var(--t2);font-family:var(--font)">📥 Importar datos</button>
@@ -4312,20 +4361,212 @@ function deleteAporte(){
   closeModal('modal-aporte');autoSave();renderAhorros();
 }
 
-initSupabase();
-   window.addEventListener('beforeunload', () => {
-  if(syncTimeout) clearTimeout(syncTimeout);
-  saveToCloud();
+// ═══════════════════════════════════════════
+// SISTEMA DE LOGIN Y USUARIOS
+// ═══════════════════════════════════════════
+const ADMIN_USER = 'admin';
+const ADMIN_PASS = '1966';
+
+let currentSession = null; // {username, isAdmin, userId}
+let editUserId = null;
+
+// Usuarios en Supabase — tabla kiko_users
+// {id, username, password, nombre, created_at}
+
+async function loadUsers(){
+  if(!supabaseClient) return [];
+  try {
+    const {data,error} = await supabaseClient.from('kiko_users').select('*').order('created_at');
+    if(error) return [];
+    return data||[];
+  } catch(e){ return []; }
+}
+
+async function doLogin(){
+  const user = document.getElementById('login-user').value.trim().toLowerCase();
+  const pass = document.getElementById('login-pass').value.trim();
+  const errEl = document.getElementById('login-error');
+  errEl.style.display = 'none';
+
+  if(!user||!pass){ errEl.style.display='block'; errEl.textContent='Completa todos los campos'; return; }
+
+  // Verificar admin
+  if(user === ADMIN_USER && pass === ADMIN_PASS){
+    currentSession = {username:'admin', isAdmin:true, userId:'admin'};
+    showApp();
+    return;
+  }
+
+  // Verificar usuarios normales en Supabase
+  if(supabaseClient){
+    try {
+      const {data,error} = await supabaseClient
+        .from('kiko_users')
+        .select('*')
+        .eq('username', user)
+        .eq('password', pass)
+        .single();
+      if(data && !error){
+        currentSession = {username:data.username, isAdmin:false, userId:'user_'+data.username, nombre:data.nombre};
+        showApp();
+        return;
+      }
+    } catch(e){}
+  }
+
+  errEl.style.display = 'block';
+  errEl.textContent = 'Usuario o contraseña incorrectos';
+}
+
+function showApp(){
+  document.getElementById('login-screen').style.display = 'none';
+  // Mostrar/ocultar navbar admin
+  const adminBtn = document.getElementById('nb-admin');
+  if(adminBtn) adminBtn.style.display = currentSession.isAdmin ? 'flex' : 'none';
+  // Cargar datos del usuario
+  const userId = currentSession.userId;
+  // Cambiar USER_ID global para que cargue datos de este usuario
+  window.CURRENT_USER_ID = userId;
+  initSupabase();
+  loadDataWithCloud().then(()=>{
+    checkRecurrentes();
+    setTimeout(recordScoreHoy, 2000);
+    setInterval(saveToCloud, 60000);
+  });
+}
+
+function doLogout(){
+  currentSession = null;
+  window.CURRENT_USER_ID = 'kiko_user';
+  // Resetear state
+  Object.assign(state, {tasks:[],objectives:[],movs:[],deudas:[],subs:[],counters:[],
+    habitos:[],meds:[],registros:[],retos:[],eventos:[],contenido:[],
+    ideasContenido:[],notasRapidas:[],empresas:[],ahorros:[],acciones:[],
+    patrimonio:{cuentas:[],propiedades:[]},ingresosRecurrentes:[],
+    xp:0,racha:0,mejorRacha:0,peso:0,historialScore:[]});
+  // Mostrar login
+  document.getElementById('login-screen').style.display = 'flex';
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('login-user').value='';
+  document.getElementById('login-pass').value='';
+}
+
+// Enter en el login
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('login-pass')?.addEventListener('keydown',e=>{
+    if(e.key==='Enter') doLogin();
+  });
+  document.getElementById('login-user')?.addEventListener('keydown',e=>{
+    if(e.key==='Enter') document.getElementById('login-pass')?.focus();
+  });
 });
-loadDataWithCloud().then(()=>{
-  checkRecurrentes();
-  setTimeout(recordScoreHoy, 2000);
-  setTimeout(checkNotificacionesDia, 1000);
-  setInterval(recordScoreHoy, 300000);
-  setInterval(saveToCloud, 60000); // Sync cada minuto
+
+// ── CRUD Usuarios (solo admin) ────────────────────────────────────────────────
+function openUserModal(id){
+  editUserId = id;
+  document.getElementById('user-modal-ttl').textContent = id ? 'Editar usuario' : 'Nuevo usuario';
+  document.getElementById('btn-user-del').classList.toggle('hidden', id==null);
+  document.getElementById('inp-user-nombre').value = '';
+  document.getElementById('inp-user-username').value = '';
+  document.getElementById('inp-user-pass').value = '';
+  if(id){
+    // Cargar datos del usuario
+    loadUsers().then(users=>{
+      const u = users.find(x=>x.id===id);
+      if(u){
+        document.getElementById('inp-user-nombre').value = u.nombre||'';
+        document.getElementById('inp-user-username').value = u.username||'';
+        document.getElementById('inp-user-pass').value = u.password||'';
+      }
+    });
+  }
+  openModal('modal-user');
+  setTimeout(()=>document.getElementById('inp-user-nombre').focus(),100);
+}
+
+async function saveUser(){
+  const nombre = document.getElementById('inp-user-nombre').value.trim();
+  const username = document.getElementById('inp-user-username').value.trim().toLowerCase();
+  const password = document.getElementById('inp-user-pass').value.trim();
+  if(!nombre||!username||!password) return;
+  if(!supabaseClient) return;
+  try {
+    if(editUserId){
+      await supabaseClient.from('kiko_users').update({nombre,username,password}).eq('id',editUserId);
+    } else {
+      await supabaseClient.from('kiko_users').insert({nombre,username,password});
+    }
+    closeModal('modal-user');
+    renderAdmin();
+  } catch(e){ alert('Error al guardar usuario'); }
+}
+
+async function deleteUser(){
+  if(!supabaseClient||!editUserId) return;
+  // También borrar datos del usuario
+  await supabaseClient.from('app_data').delete().eq('user_id','user_'+editUserId);
+  await supabaseClient.from('kiko_users').delete().eq('id',editUserId);
+  closeModal('modal-user');
+  renderAdmin();
+}
+
+async function renderAdmin(){
+  const users = await loadUsers();
+  const el = document.getElementById('admin-users-list');
+  if(!el) return;
+  el.innerHTML = users.length
+    ? users.map(u=>`
+      <div class="card" style="display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer" onclick="openUserModal('${u.id}')">
+        <div style="width:40px;height:40px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;color:#fff;font-weight:700">${(u.nombre||'?')[0].toUpperCase()}</div>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:600;color:var(--t1)">${u.nombre}</div>
+          <div style="font-size:12px;color:var(--t2)">@${u.username}</div>
+        </div>
+        <i class="ti ti-pencil" style="font-size:15px;color:var(--t3)"></i>
+      </div>`).join('')
+    : '<div class="empty-msg">Sin usuarios. Toca + para crear el primero.</div>';
+}
+
+// Añadir admin al navbar si es admin
+function setupAdminNav(){
+  const navbar = document.getElementById('main-navbar');
+  if(!navbar) return;
+  const existing = document.getElementById('nb-admin');
+  if(existing) return;
+  const btn = document.createElement('button');
+  btn.className = 'nav-btn';
+  btn.id = 'nb-admin';
+  btn.style.display = 'none';
+  btn.innerHTML = '<div class="nav-icon">⚙️</div><span>Admin</span>';
+  btn.onclick = ()=>navMain('admin');
+  navbar.appendChild(btn);
+}
+
+initSupabase();
+// Mostrar login al inicio
+document.addEventListener('DOMContentLoaded',()=>{
+  setupAdminNav();
 });
 </script>
 
+
+<!-- MODAL USUARIO ADMIN -->
+<div class="modal-overlay" id="modal-user" style="display:none" onclick="if(event.target===this)closeModal('modal-user')">
+  <div class="modal">
+    <div class="modal-handle-wrap"><div class="modal-handle"></div></div>
+    <div class="modal-title" id="user-modal-ttl">Nuevo usuario</div>
+    <label class="inp-label">Nombre completo</label>
+    <input class="inp" id="inp-user-nombre" placeholder="Ej: Juan García" maxlength="40">
+    <label class="inp-label">Usuario</label>
+    <input class="inp" id="inp-user-username" placeholder="Ej: juan123" maxlength="20" style="text-transform:lowercase">
+    <label class="inp-label">Contraseña</label>
+    <input class="inp" id="inp-user-pass" placeholder="Mínimo 4 caracteres" maxlength="20">
+    <div class="btn-row">
+      <button class="btn-del hidden" id="btn-user-del" onclick="deleteUser()">🗑 Eliminar</button>
+      <button class="btn-main" onclick="saveUser()">Guardar</button>
+    </div>
+  </div>
+</div>
 
 <!-- MODAL EVENTO -->
 <div class="modal-overlay" id="modal-evento" style="display:none" onclick="if(event.target===this)closeModal('modal-evento')">
